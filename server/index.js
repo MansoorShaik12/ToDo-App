@@ -17,8 +17,11 @@ console.log('MONGO_URI:', process.env.MONGO_URI ? 'Is set (hidden)' : 'Not set')
 app.use(cors());
 app.use(express.json());
 
+// Create API Router - CRITICAL: This ensures API routes are prioritized
+const apiRouter = express.Router();
+
 // Basic healthcheck route that doesn't require MongoDB
-app.get('/api/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'Server is running', 
@@ -52,7 +55,7 @@ const Todo = mongoose.model('Todo', todoSchema);
 // Setup Todo routes function - only called after MongoDB connects
 function setupTodoRoutes() {
   // Get all todos
-  app.get('/api/todos', async (req, res) => {
+  apiRouter.get('/todos', async (req, res) => {
     try {
       console.log('GET /api/todos - Fetching all todos...');
       const todos = await Todo.find();
@@ -65,7 +68,7 @@ function setupTodoRoutes() {
   });
 
   // Add todo
-  app.post('/api/todos', async (req, res) => {
+  apiRouter.post('/todos', async (req, res) => {
     try {
       console.log('POST /api/todos - Adding new todo:', req.body);
       const newTodo = new Todo(req.body);
@@ -79,7 +82,7 @@ function setupTodoRoutes() {
   });
 
   // Update todo
-  app.put('/api/todos/:id', async (req, res) => {
+  apiRouter.put('/todos/:id', async (req, res) => {
     try {
       console.log('PUT /api/todos/:id - Updating todo with ID:', req.params.id);
       const todo = await Todo.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -96,7 +99,7 @@ function setupTodoRoutes() {
   });
 
   // Delete todo
-  app.delete('/api/todos/:id', async (req, res) => {
+  apiRouter.delete('/todos/:id', async (req, res) => {
     try {
       console.log('DELETE /api/todos/:id - Deleting todo with ID:', req.params.id);
       const todo = await Todo.findByIdAndDelete(req.params.id);
@@ -115,13 +118,17 @@ function setupTodoRoutes() {
   console.log('Todo routes set up successfully');
 }
 
-// Setup static file serving - MUST COME AFTER API ROUTES
+// IMPORTANT: Register the API router BEFORE static files
+// This ensures API routes take precedence over the wildcard route
+app.use('/api', apiRouter);
+
+// AFTER API routes, set up static file serving
 if (process.env.NODE_ENV === 'production') {
   console.log('Setting up static file serving for production mode');
   // Serve static files from the React build directory
   app.use(express.static(path.join(__dirname, '../client/build')));
   
-  // For any other routes, serve the React app
+  // For any other routes, serve the React app (must be AFTER API routes)
   app.get('*', (req, res) => {
     res.sendFile(path.resolve(__dirname, '../client/build', 'index.html'));
   });
