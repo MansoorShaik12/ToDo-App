@@ -12,25 +12,11 @@ console.log('Server starting...');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('PORT:', process.env.PORT);
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Add a basic root route
-app.get('/', (req, res) => {
-  res.send('Todo API server is running');
-});
-
-// Add a basic health check route
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    message: 'Server is running', 
-    env: process.env.NODE_ENV,
-    mongo_uri: process.env.MONGO_URI ? 'Set (hidden for security)' : 'Not set'
-  });
-});
-
-// MongoDB connection
+// MongoDB connection first - before using any models
 console.log('Attempting MongoDB connection...');
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected successfully'))
@@ -47,7 +33,17 @@ const todoSchema = new mongoose.Schema({
 
 const Todo = mongoose.model('Todo', todoSchema);
 
-// Routes
+// API Routes - Define after creating the models
+// Add a basic health check route
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Server is running', 
+    env: process.env.NODE_ENV,
+    mongo_uri: process.env.MONGO_URI ? 'Set (hidden for security)' : 'Not set'
+  });
+});
+
 // Get all todos
 app.get('/api/todos', async (req, res) => {
   try {
@@ -109,14 +105,22 @@ app.delete('/api/todos/:id', async (req, res) => {
   }
 });
 
+// Static file serving - Must be defined AFTER API routes to prevent interference
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
+  console.log('Setting up static file serving for production');
+  
   // Set static folder
   app.use(express.static(path.join(__dirname, '../client/build')));
 
-  // Any route that is not an API route should be handled by React
+  // Route all other requests to React app (must be after API routes)
   app.get('*', (req, res) => {
     res.sendFile(path.resolve(__dirname, '../client/build', 'index.html'));
+  });
+} else {
+  // Basic root route for non-production environments
+  app.get('/', (req, res) => {
+    res.send('Todo API server is running (development mode)');
   });
 }
 
