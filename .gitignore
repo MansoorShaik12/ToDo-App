@@ -16,6 +16,9 @@ yarn-error.log
 /client/.env
 /client/.env.local
 
+/server/.env
+/server/.env.local
+
 # IDE and editors
 .idea/
 .vscode/

@@ -31,6 +31,8 @@ function App() {
     checkDueDates();
   }, [todos]);
 
+  console.log('API URL:', process.env.REACT_APP_API_URL);
+
   const fetchTodos = async () => {
     try {
       console.log('Fetching todos from backend...');
