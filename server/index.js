@@ -7,10 +7,31 @@ const path = require('path');
 dotenv.config();
 const app = express();
 
+// Debug startup info
+console.log('Server starting...');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+
 app.use(cors());
 app.use(express.json());
 
+// Add a basic root route
+app.get('/', (req, res) => {
+  res.send('Todo API server is running');
+});
+
+// Add a basic health check route
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Server is running', 
+    env: process.env.NODE_ENV,
+    mongo_uri: process.env.MONGO_URI ? 'Set (hidden for security)' : 'Not set'
+  });
+});
+
 // MongoDB connection
+console.log('Attempting MongoDB connection...');
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.error('MongoDB connection error:', err));
