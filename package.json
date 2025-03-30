@@ -11,7 +11,7 @@
     "build": "npm run build-client && npm run build-server",
     "start-client": "cd client && npm start",
     "start-server": "cd server && node index.js",
-    "start": "cd server && NODE_ENV=production node index.js"
+    "start": "cd server && node index.js"
   },
   "engines": {
     "node": ">=14"
