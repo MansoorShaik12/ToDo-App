@@ -34,7 +34,8 @@ function App() {
   const fetchTodos = async () => {
     try {
       console.log('Fetching todos from backend...');
-      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/todos`);
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      const res = await axios.get(`${apiUrl}/api/todos`);
       console.log('Todos fetched:', res.data);
       setTodos(res.data);
     } catch (err) {
@@ -55,14 +56,16 @@ function App() {
     try {
       if (editId) {
         console.log('Updating todo with ID:', editId, 'Data:', todoData);
-        const res = await axios.put(`${process.env.REACT_APP_API_URL}/api/todos/${editId}`, todoData);
+        const apiUrl = process.env.REACT_APP_API_URL || '';
+        const res = await axios.put(`${apiUrl}/api/todos/${editId}`, todoData);
         console.log('Updated todo:', res.data);
         setTodos(todos.map(todo => (todo._id === editId ? res.data : todo)));
         showNotification('Task Updated', `${text} has been updated!`);
         setEditId(null);
       } else {
         console.log('Adding new todo:', todoData);
-        const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/todos`, todoData);
+        const apiUrl = process.env.REACT_APP_API_URL || '';
+        const res = await axios.post(`${apiUrl}/api/todos`, todoData);
         console.log('Added todo:', res.data);
         setTodos([...todos, res.data]);
         showNotification('Task Added', `${text} has been added to your list!`);
@@ -83,7 +86,8 @@ function App() {
     }
     try {
       console.log('Sending delete request to backend for ID:', id);
-      await axios.delete(`${process.env.REACT_APP_API_URL}/api/todos/${id}`);
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      await axios.delete(`${apiUrl}/api/todos/${id}`);
       console.log('Todo deleted successfully, updating state...');
       setTodos(todos.filter(todo => todo._id !== id));
       showNotification('Task Deleted', `${todo.text} has been deleted!`);
@@ -101,7 +105,7 @@ function App() {
   };
 
   const toggleComplete = async (id) => {
-    console.log('Toggling completion for todo with ID:', id);
+    console.log('Attempting to toggle completion for todo with ID:', id);
     const todo = todos.find(t => t._id === id);
     if (!todo) {
       console.log('Todo not found with ID:', id);
@@ -109,7 +113,8 @@ function App() {
     }
     try {
       console.log('Sending update request to backend for ID:', id, 'New completed status:', !todo.completed);
-      const res = await axios.put(`${process.env.REACT_APP_API_URL}/api/todos/${id}`, {
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      const res = await axios.put(`${apiUrl}/api/todos/${id}`, {
         ...todo,
         completed: !todo.completed,
       });
@@ -131,12 +136,17 @@ function App() {
   };
 
   const clearCompleted = async () => {
-    console.log('Clearing completed todos...');
+    console.log('Attempting to clear all completed todos...');
     const completedTodos = todos.filter(todo => todo.completed);
+    if (completedTodos.length === 0) {
+      console.log('No completed todos to clear.');
+      return;
+    }
     try {
       for (const todo of completedTodos) {
         console.log('Deleting completed todo with ID:', todo._id);
-        await axios.delete(`${process.env.REACT_APP_API_URL}/api/todos/${todo._id}`);
+        const apiUrl = process.env.REACT_APP_API_URL || '';
+        await axios.delete(`${apiUrl}/api/todos/${todo._id}`);
       }
       console.log('Completed todos cleared, updating state...');
       setTodos(todos.filter(todo => !todo.completed));
