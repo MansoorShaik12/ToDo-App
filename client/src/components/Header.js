@@ -1,24 +1,29 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 const Header = ({ darkMode, setDarkMode }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="flex justify-between items-center mb-6"
-    >
-      <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+    <div className="flex justify-between items-center mb-8 animate-fade-in">
+      <h1
+        className={`text-3xl font-bold ${
+          darkMode ? 'text-white' : 'text-gray-800'
+        }`}
+      >
+        <span className="bg-gradient-to-r from-[#667eea] to-[#764ba2] bg-clip-text text-transparent">
+          Mansoor's
+        </span>{' '}
         Todo Master
       </h1>
       <button
         onClick={() => setDarkMode(!darkMode)}
-        className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition duration-200"
+        className={`p-2 rounded-full ${
+          darkMode
+            ? 'bg-gray-700 hover:bg-gray-600'
+            : 'bg-gray-200 hover:bg-gray-300'
+        } transition-all duration-300`}
       >
         {darkMode ? '☀️' : '🌙'}
       </button>
-    </motion.div>
+    </div>
   );
 };
 

@@ -7,6 +7,7 @@ import TodoList from './components/TodoList';
 import StatsDashboard from './components/StatsDashboard';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useNavigate } from 'react-router-dom';
 
 function App() {
   const [todos, setTodos] = useState([]);
@@ -37,7 +38,10 @@ function App() {
     try {
       console.log('Fetching todos from backend...');
       const apiUrl = process.env.REACT_APP_API_URL || '';
-      const res = await axios.get(`${apiUrl}/api/todos`);
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${apiUrl}/api/todos`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       console.log('Todos fetched:', res.data);
       setTodos(res.data);
     } catch (err) {
@@ -59,15 +63,21 @@ function App() {
       if (editId) {
         console.log('Updating todo with ID:', editId, 'Data:', todoData);
         const apiUrl = process.env.REACT_APP_API_URL || '';
-        const res = await axios.put(`${apiUrl}/api/todos/${editId}`, todoData);
+        const token = localStorage.getItem('token');
+        const res = await axios.put(`${apiUrl}/api/todos/${editId}`, todoData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         console.log('Updated todo:', res.data);
-        setTodos(todos.map(todo => (todo._id === editId ? res.data : todo)));
+        setTodos(todos.map((todo) => (todo._id === editId ? res.data : todo)));
         showNotification('Task Updated', `${text} has been updated!`);
         setEditId(null);
       } else {
         console.log('Adding new todo:', todoData);
         const apiUrl = process.env.REACT_APP_API_URL || '';
-        const res = await axios.post(`${apiUrl}/api/todos`, todoData);
+        const token = localStorage.getItem('token');
+        const res = await axios.post(`${apiUrl}/api/todos`, todoData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         console.log('Added todo:', res.data);
         setTodos([...todos, res.data]);
         showNotification('Task Added', `${text} has been added to your list!`);
@@ -81,7 +91,7 @@ function App() {
 
   const deleteTodo = async (id) => {
     console.log('Attempting to delete todo with ID:', id);
-    const todo = todos.find(t => t._id === id);
+    const todo = todos.find((t) => t._id === id);
     if (!todo) {
       console.log('Todo not found with ID:', id);
       return;
@@ -89,12 +99,14 @@ function App() {
     try {
       console.log('Sending delete request to backend for ID:', id);
       const apiUrl = process.env.REACT_APP_API_URL || '';
-      await axios.delete(`${apiUrl}/api/todos/${id}`);
+      const token = localStorage.getItem('token');
+      await axios.delete(`${apiUrl}/api/todos/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       console.log('Todo deleted successfully, updating state...');
-      setTodos(todos.filter(todo => todo._id !== id));
+      setTodos(todos.filter((todo) => todo._id !== id));
       showNotification('Task Deleted', `${todo.text} has been deleted!`);
 
-      // Check if the deleted todo was being edited
       if (editId === id) {
         console.log('Deleted todo was in edit mode, resetting form...');
         setEditId(null);
@@ -106,25 +118,44 @@ function App() {
     }
   };
 
+  const navigate = useNavigate();
+
   const toggleComplete = async (id) => {
     console.log('Attempting to toggle completion for todo with ID:', id);
-    const todo = todos.find(t => t._id === id);
+    const todo = todos.find((t) => t._id === id);
     if (!todo) {
       console.log('Todo not found with ID:', id);
       return;
     }
     try {
-      console.log('Sending update request to backend for ID:', id, 'New completed status:', !todo.completed);
       const apiUrl = process.env.REACT_APP_API_URL || '';
-      const res = await axios.put(`${apiUrl}/api/todos/${id}`, {
-        ...todo,
-        completed: !todo.completed,
-      });
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showNotification('Error', 'Please log in to continue.');
+        navigate('/login');
+        return;
+      }
+      console.log('Sending update request to backend for ID:', id, 'New completed status:', !todo.completed);
+      const res = await axios.put(
+        `${apiUrl}/api/todos/${id}`,
+        {
+          ...todo,
+          completed: !todo.completed,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       console.log('Updated todo from backend:', res.data);
-      setTodos(todos.map(t => (t._id === id ? res.data : t)));
+      setTodos(todos.map((t) => (t._id === id ? res.data : t)));
     } catch (err) {
       console.error('Error toggling todo completion:', err);
-      showNotification('Error', 'Failed to update task status.');
+      if (err.response?.status === 401) {
+        showNotification('Error', 'Session expired. Please log in again.');
+        navigate('/login');
+      } else {
+        showNotification('Error', 'Failed to update task status.');
+      }
     }
   };
 
@@ -139,7 +170,7 @@ function App() {
 
   const clearCompleted = async () => {
     console.log('Attempting to clear all completed todos...');
-    const completedTodos = todos.filter(todo => todo.completed);
+    const completedTodos = todos.filter((todo) => todo.completed);
     if (completedTodos.length === 0) {
       console.log('No completed todos to clear.');
       return;
@@ -151,7 +182,7 @@ function App() {
         await axios.delete(`${apiUrl}/api/todos/${todo._id}`);
       }
       console.log('Completed todos cleared, updating state...');
-      setTodos(todos.filter(todo => !todo.completed));
+      setTodos(todos.filter((todo) => !todo.completed));
       showNotification('Completed Tasks Cleared', 'All completed tasks have been removed!');
     } catch (err) {
       console.error('Error clearing completed todos:', err);
@@ -183,7 +214,7 @@ function App() {
 
   const checkDueDates = () => {
     console.log('Checking due dates for todos...');
-    todos.forEach(todo => {
+    todos.forEach((todo) => {
       if (todo.dueDate && !todo.completed) {
         const due = new Date(todo.dueDate);
         const today = new Date();
@@ -211,12 +242,19 @@ function App() {
 
   const shareTodos = () => {
     console.log('Sharing todos...');
-    const todoText = todos.map(todo => `${todo.text} (${todo.category}, ${todo.priority}, Due: ${todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'No Due Date'})`).join('\n');
+    const todoText = todos
+      .map(
+        (todo) =>
+          `${todo.text} (${todo.category}, ${todo.priority}, Due: ${
+            todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'No Due Date'
+          })`
+      )
+      .join('\n');
     if (navigator.share) {
       navigator.share({
         title: 'My Todos',
         text: todoText,
-      }).catch(err => console.error('Error sharing todos:', err));
+      }).catch((err) => console.error('Error sharing todos:', err));
     } else {
       console.log('Share API not supported, showing alert...');
       alert('Share API not supported. Copy this text to share:\n\n' + todoText);
@@ -240,15 +278,27 @@ function App() {
   };
 
   const filteredTodos = todos
-    .filter(todo => todo.text.toLowerCase().includes(search.toLowerCase()))
-    .filter(todo => filter === 'All' || (filter === 'Completed' ? todo.completed : !todo.completed))
-    .filter(todo => categoryFilter === 'All' || todo.category === categoryFilter);
+    .filter((todo) => todo.text.toLowerCase().includes(search.toLowerCase()))
+    .filter((todo) =>
+      filter === 'All' ? true : filter === 'Completed' ? todo.completed : !todo.completed
+    )
+    .filter((todo) => categoryFilter === 'All' || todo.category === categoryFilter);
 
   const sortedTodos = sortTodos(filteredTodos);
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500'} flex items-center justify-center p-4 transition-colors duration-300`}>
-      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-2xl w-full max-w-2xl p-6`}>
+    <div
+      className={`min-h-screen ${
+        darkMode
+          ? 'bg-gray-800'
+          : 'bg-gradient-to-br from-[#f5f7fa] to-[#c3cfe2]'
+      } flex items-center justify-center px-4 sm:px-4 lg:px-4 xl:px-3 transition-colors duration-300`}
+    >
+      <div
+        className={`${
+          darkMode ? 'bg-gray-900' : 'bg-white'
+        } rounded-lg shadow-lg w-full max-w-3xl p-8 animate-fade-in`}
+      >
         <Header darkMode={darkMode} setDarkMode={setDarkMode} />
         <StatsDashboard todos={todos} darkMode={darkMode} />
         <input
@@ -256,8 +306,10 @@ function App() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search todos..."
-          className={`w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 ${
-            darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-800'
+          className={`w-full p-3 mb-6 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#667eea] transition-all duration-300 ${
+            darkMode
+              ? 'bg-gray-800 border-gray-600 text-white'
+              : 'bg-gray-100 border-gray-200 text-gray-800'
           }`}
         />
         <TodoForm
@@ -279,40 +331,28 @@ function App() {
           categoryFilter={categoryFilter}
           setCategoryFilter={setCategoryFilter}
           darkMode={darkMode}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
         />
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-wrap gap-4 mb-6">
           <button
             onClick={clearCompleted}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200 font-semibold"
+            className="px-4 py-2 rounded-md bg-red-500 text-white font-semibold hover:bg-red-600 hover:-translate-y-0.5 transition-all duration-300"
           >
             Clear Completed
           </button>
           <button
             onClick={exportToPDF}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200 font-semibold"
+            className="px-4 py-2 rounded-md bg-green-500 text-white font-semibold hover:bg-green-600 hover:-translate-y-0.5 transition-all duration-300"
           >
             Export to PDF
           </button>
           <button
             onClick={shareTodos}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 font-semibold"
+            className="px-4 py-2 rounded-md bg-blue-500 text-white font-semibold hover:bg-blue-600 hover:-translate-y-0.5 transition-all duration-300"
           >
             Share Todos
           </button>
-        </div>
-        <div className="mb-4">
-          <label className={`mr-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Sort By:</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className={`p-2 border rounded-lg transition duration-200 ${
-              darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-800'
-            }`}
-          >
-            <option value="none">None</option>
-            <option value="priority">Priority</option>
-            <option value="dueDate">Due Date</option>
-          </select>
         </div>
         <div ref={todoListRef}>
           <TodoList

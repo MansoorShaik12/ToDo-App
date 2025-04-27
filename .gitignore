@@ -12,10 +12,11 @@ yarn-error.log
 /server/build/
 /server/node_modules/
 
-# Environment variables
+# Client environment variables
 /client/.env
 /client/.env.local
 
+# Server environment variables
 /server/.env
 /server/.env.local
 

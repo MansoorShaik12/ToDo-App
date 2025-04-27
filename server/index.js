@@ -1,27 +1,136 @@
+// const express = require('express');
+// const mongoose = require('mongoose');
+// const cors = require('cors');
+// const dotenv = require('dotenv');
+// const path = require('path');
+
+// dotenv.config();
+// const app = express();
+
+// // Debug startup info
+// console.log('Server starting with simplified configuration...');
+// console.log('NODE_ENV:', process.env.NODE_ENV);
+// console.log('PORT:', process.env.PORT);
+// console.log('MONGO_URI:', process.env.MONGO_URI ? 'Is set (hidden)' : 'Not set');
+
+// // Middleware
+// app.use(cors());
+// app.use(express.json());
+
+// // MongoDB connection
+// console.log('Attempting MongoDB connection...');
+// mongoose.connect(process.env.MONGO_URI)
+//   .then(() => {
+//     console.log('MongoDB connected successfully');
+//     setupTodoRoutes(); // Only set up todo routes after DB connection
+//   })
+//   .catch(err => {
+//     console.error('MongoDB connection error:', err);
+//   });
+
+// // Routes
+// app.use('/api/auth', require('./routes/auth'));
+// app.use('/api/todos', require('./routes/todos'));
+
+// // Healthcheck route
+// app.get('/api/health', (req, res) => {
+//   res.json({ 
+//     status: 'ok', 
+//     message: 'Server is running', 
+//     env: process.env.NODE_ENV || 'not set',
+//     time: new Date().toISOString()
+//   });
+// });
+
+// // AFTER API routes, set up static file serving
+// if (process.env.NODE_ENV === 'production') {
+//   console.log('Setting up static file serving for production mode');
+//   // Serve static files from the React build directory
+//   app.use(express.static(path.join(__dirname, '../client/build')));
+  
+//   // For any other routes, serve the React app (must be AFTER API routes)
+//   app.get('*', (req, res) => {
+//     res.sendFile(path.resolve(__dirname, '../client/build', 'index.html'));
+//   });
+// } else {
+//   // For development - show a message that the server is running
+//   app.get('/', (req, res) => {
+//     res.send('Todo API server is running (development mode)');
+//   });
+// }
+
+// // Update todo
+
+// const PORT = process.env.PORT || 5000;
+// app.listen(PORT, '0.0.0.0', () => {
+//   console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+// });
+
+
+
+
+
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 
-dotenv.config();
-const app = express();
+// Debug .env file existence and content
+const envPath = path.resolve(__dirname, '.env');
+console.log('Checking .env file at:', envPath);
+console.log('.env file exists:', fs.existsSync(envPath));
 
-// Debug startup info
+// Read and log raw .env file content
+try {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  console.log('Raw .env file content:', envContent);
+} catch (err) {
+  console.error('Error reading .env file:', err);
+}
+
+// Load environment variables
+const dotenvResult = dotenv.config({ path: envPath });
+if (dotenvResult.error) {
+  console.error('Dotenv parsing error:', dotenvResult.error);
+} else {
+  console.log('Dotenv parsed successfully:', dotenvResult.parsed);
+}
+
+// Debug environment variables
 console.log('Server starting with simplified configuration...');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('PORT:', process.env.PORT);
-console.log('MONGO_URI:', process.env.MONGO_URI ? 'Is set (hidden)' : 'Not set');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'Not set');
+console.log('PORT:', process.env.PORT || 'Not set');
+console.log('MONGO_URI:', process.env.MONGO_URI ? 'Set (hidden)' : 'Not set');
+
+const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Create API Router - CRITICAL: This ensures API routes are prioritized
-const apiRouter = express.Router();
+// MongoDB connection
+console.log('Attempting MongoDB connection...');
+if (!process.env.MONGO_URI) {
+  console.error('MONGO_URI is not defined. Check .env file.');
+  process.exit(1);
+}
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log('MongoDB connected successfully');
+    app.use('/api/todos', require('./routes/todos'));
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+  });
 
-// Basic healthcheck route that doesn't require MongoDB
-apiRouter.get('/health', (req, res) => {
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+
+// Healthcheck route
+app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'Server is running', 
@@ -30,110 +139,14 @@ apiRouter.get('/health', (req, res) => {
   });
 });
 
-// MongoDB connection
-console.log('Attempting MongoDB connection...');
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('MongoDB connected successfully');
-    setupTodoRoutes(); // Only set up todo routes after DB connection
-  })
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-  });
-
-// Todo Schema
-const todoSchema = new mongoose.Schema({
-  text: { type: String, required: true },
-  completed: { type: Boolean, default: false },
-  category: { type: String, default: 'General' },
-  priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
-  dueDate: { type: Date },
-});
-
-const Todo = mongoose.model('Todo', todoSchema);
-
-// Setup Todo routes function - only called after MongoDB connects
-function setupTodoRoutes() {
-  // Get all todos
-  apiRouter.get('/todos', async (req, res) => {
-    try {
-      console.log('GET /api/todos - Fetching all todos...');
-      const todos = await Todo.find();
-      console.log('Todos fetched:', todos.length);
-      res.json(todos);
-    } catch (err) {
-      console.error('GET /api/todos - Error fetching todos:', err);
-      res.status(500).json({ message: 'Error fetching todos', error: err.message });
-    }
-  });
-
-  // Add todo
-  apiRouter.post('/todos', async (req, res) => {
-    try {
-      console.log('POST /api/todos - Adding new todo:', req.body);
-      const newTodo = new Todo(req.body);
-      await newTodo.save();
-      console.log('Todo added:', newTodo);
-      res.status(201).json(newTodo);
-    } catch (err) {
-      console.error('POST /api/todos - Error adding todo:', err);
-      res.status(500).json({ message: 'Error adding todo', error: err.message });
-    }
-  });
-
-  // Update todo
-  apiRouter.put('/todos/:id', async (req, res) => {
-    try {
-      console.log('PUT /api/todos/:id - Updating todo with ID:', req.params.id);
-      const todo = await Todo.findByIdAndUpdate(req.params.id, req.body, { new: true });
-      if (!todo) {
-        console.log('PUT /api/todos/:id - Todo not found with ID:', req.params.id);
-        return res.status(404).json({ message: 'Todo not found' });
-      }
-      console.log('Todo updated:', todo);
-      res.json(todo);
-    } catch (err) {
-      console.error('PUT /api/todos/:id - Error updating todo:', err);
-      res.status(500).json({ message: 'Error updating todo', error: err.message });
-    }
-  });
-
-  // Delete todo
-  apiRouter.delete('/todos/:id', async (req, res) => {
-    try {
-      console.log('DELETE /api/todos/:id - Deleting todo with ID:', req.params.id);
-      const todo = await Todo.findByIdAndDelete(req.params.id);
-      if (!todo) {
-        console.log('DELETE /api/todos/:id - Todo not found with ID:', req.params.id);
-        return res.status(404).json({ message: 'Todo not found' });
-      }
-      console.log('Todo deleted:', todo);
-      res.json({ message: 'Todo deleted' });
-    } catch (err) {
-      console.error('DELETE /api/todos/:id - Error deleting todo:', err);
-      res.status(500).json({ message: 'Error deleting todo', error: err.message });
-    }
-  });
-
-  console.log('Todo routes set up successfully');
-}
-
-// IMPORTANT: Register the API router BEFORE static files
-// This ensures API routes take precedence over the wildcard route
-app.use('/api', apiRouter);
-
 // AFTER API routes, set up static file serving
 if (process.env.NODE_ENV === 'production') {
   console.log('Setting up static file serving for production mode');
-  // Serve static files from the React build directory
   app.use(express.static(path.join(__dirname, '../client/build')));
-  
-  // For any other routes, serve the React app (must be AFTER API routes)
   app.get('*', (req, res) => {
     res.sendFile(path.resolve(__dirname, '../client/build', 'index.html'));
   });
 } else {
-  // For development - show a message that the server is running
   app.get('/', (req, res) => {
     res.send('Todo API server is running (development mode)');
   });

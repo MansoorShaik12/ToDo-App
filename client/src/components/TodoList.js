@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import TodoItem from './TodoItem';
 
-const TodoList = ({ filteredTodos, setTodos, toggleComplete, editTodo, deleteTodo, darkMode }) => {
+const TodoList = ({
+  filteredTodos,
+  setTodos,
+  toggleComplete,
+  editTodo,
+  deleteTodo,
+  darkMode,
+}) => {
   const [draggedItem, setDraggedItem] = useState(null);
 
   const handleDragStart = (e, index) => {
@@ -39,6 +46,8 @@ const TodoList = ({ filteredTodos, setTodos, toggleComplete, editTodo, deleteTod
           onDragOver={(e) => handleDragOver(e, index)}
           onDrop={(e) => handleDrop(e, index)}
           onDragEnd={handleDragEnd}
+          className="animate-fade-in"
+          style={{ animationDelay: `${index * 0.1}s` }}
         >
           <TodoItem
             todo={todo}
