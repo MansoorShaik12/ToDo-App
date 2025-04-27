@@ -297,7 +297,7 @@ function App() {
       <div
         className={`${
           darkMode ? 'bg-gray-900' : 'bg-white'
-        } rounded-lg shadow-lg w-full max-w-3xl p-8 animate-fade-in`}
+        } rounded-lg shadow-lg w-full max-w-3xl p-8 my-8 animate-fade-in`}
       >
         <Header darkMode={darkMode} setDarkMode={setDarkMode} />
         <StatsDashboard todos={todos} darkMode={darkMode} />
